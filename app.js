@@ -18,11 +18,10 @@ const firebaseConfig = {
   appId: "1:536487039136:web:3e86b35121344adeb4f9c5"
 };
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Atualizar placeholder do campo extra
+// Atualiza o placeholder conforme a categoria
 window.atualizarCampoExtra = function () {
   const categoria = document.getElementById("categoria").value.toLowerCase();
   const extra = document.getElementById("extra");
@@ -38,14 +37,13 @@ window.atualizarCampoExtra = function () {
   }
 };
 
-// Adicionar item
+// Adiciona item ao catálogo
 window.addItem = async function () {
   const titulo = document.getElementById("titulo").value.trim();
   const categoria = document.getElementById("categoria").value.trim();
   const ano = parseInt(document.getElementById("ano").value.trim());
   const descricao = document.getElementById("descricao").value.trim();
   const extra = document.getElementById("extra").value.trim();
-  const imagem = document.getElementById("imagem").value.trim();
 
   if (!titulo || !categoria || isNaN(ano)) {
     alert("Preencha corretamente os campos Título, Categoria e Ano.");
@@ -59,7 +57,6 @@ window.addItem = async function () {
       ano,
       descricao,
       extra,
-      imagem,
       criadoEm: new Date()
     });
 
@@ -70,7 +67,6 @@ window.addItem = async function () {
     document.getElementById("ano").value = "";
     document.getElementById("descricao").value = "";
     document.getElementById("extra").value = "";
-    document.getElementById("imagem").value = "";
 
     listarItens();
   } catch (e) {
@@ -78,7 +74,7 @@ window.addItem = async function () {
   }
 };
 
-// Listar itens
+// Lista os itens
 async function listarItens(filtro = "") {
   const lista = document.getElementById("itens-list");
   lista.innerHTML = "";
@@ -108,7 +104,6 @@ async function listarItens(filtro = "") {
     categorias[categoria].forEach((item) => {
       const li = document.createElement("li");
       li.innerHTML = `
-        ${item.imagem ? `<img src="${item.imagem}" alt="imagem">` : ""}
         <div>
           <strong>${item.titulo}</strong><br/>
           ${item.extra ? `<em>${item.extra}</em><br/>` : ""}
@@ -124,7 +119,7 @@ async function listarItens(filtro = "") {
   gerarMenuCategorias();
 }
 
-// Menu categorias
+// Cria o menu de categorias
 async function gerarMenuCategorias() {
   const menu = document.getElementById("menu-categorias");
   menu.innerHTML = "";
@@ -150,12 +145,12 @@ async function gerarMenuCategorias() {
   menu.appendChild(limpar);
 }
 
-// Filtro
+// Filtro por categoria
 async function filtrarCategoria(categoria) {
   listarItens(categoria);
 }
 
-// Busca
+// Filtro por busca
 window.buscarItens = function () {
   const termo = document.getElementById("busca").value;
   listarItens(termo);
@@ -174,4 +169,5 @@ window.deletarItem = async function (id) {
   }
 };
 
+// Inicializa a listagem ao carregar
 listarItens();
