@@ -5,10 +5,11 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
-  doc
+  doc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
-// Config Firebase
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDDZRLnOgoA-ke9VX-Ky2iJu9WExFgd_Xk",
   authDomain: "catalogo-pessoal-eda3c.firebaseapp.com",
@@ -21,7 +22,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Atualiza o placeholder conforme a categoria
+// Atualiza placeholder conforme a categoria
 window.atualizarCampoExtra = function () {
   const categoria = document.getElementById("categoria").value.toLowerCase();
   const extra = document.getElementById("extra");
@@ -37,9 +38,9 @@ window.atualizarCampoExtra = function () {
   }
 };
 
-// Adiciona item ao catálogo
+// Adiciona novo item
 window.addItem = async function () {
-  const titulo = document.getElementById("titulo").value.trim();
+  const titulo = document.getElementById("titulo").value.trim().toUpperCase();
   const categoria = document.getElementById("categoria").value.trim();
   const ano = parseInt(document.getElementById("ano").value.trim());
   const descricao = document.getElementById("descricao").value.trim();
@@ -61,13 +62,7 @@ window.addItem = async function () {
     });
 
     alert("Item adicionado com sucesso!");
-
-    document.getElementById("titulo").value = "";
-    document.getElementById("categoria").value = "";
-    document.getElementById("ano").value = "";
-    document.getElementById("descricao").value = "";
-    document.getElementById("extra").value = "";
-
+    limparCampos();
     listarItens();
   } catch (e) {
     alert("Erro ao adicionar item: " + e.message);
@@ -110,7 +105,10 @@ async function listarItens(filtro = "") {
           ${item.categoria} - ${item.ano}<br/>
           ${item.descricao}
         </div>
-        <button onclick="deletarItem('${item.id}')">🗑️</button>
+        <div class="acoes">
+          <button onclick="editarItem('${item.id}', \`${item.titulo}\`, \`${item.categoria}\`, '${item.ano}', \`${item.extra}\`, \`${item.descricao}\`)">✏️</button>
+          <button onclick="deletarItem('${item.id}')">🗑️</button>
+        </div>
       `;
       lista.appendChild(li);
     });
@@ -119,7 +117,59 @@ async function listarItens(filtro = "") {
   gerarMenuCategorias();
 }
 
-// Cria o menu de categorias
+// Editar item existente
+window.editarItem = function (id, titulo, categoria, ano, extra, descricao) {
+  document.getElementById("titulo").value = titulo;
+  document.getElementById("categoria").value = categoria;
+  document.getElementById("ano").value = ano;
+  document.getElementById("extra").value = extra;
+  document.getElementById("descricao").value = descricao;
+
+  const botaoSalvar = document.querySelector(".form-section button");
+  botaoSalvar.textContent = "Atualizar Item";
+  botaoSalvar.onclick = async function () {
+    const novoTitulo = document.getElementById("titulo").value.trim().toUpperCase();
+    const novaCategoria = document.getElementById("categoria").value.trim();
+    const novoAno = parseInt(document.getElementById("ano").value.trim());
+    const novoExtra = document.getElementById("extra").value.trim();
+    const novaDescricao = document.getElementById("descricao").value.trim();
+
+    if (!novoTitulo || !novaCategoria || isNaN(novoAno)) {
+      alert("Preencha corretamente os campos Título, Categoria e Ano.");
+      return;
+    }
+
+    try {
+      const itemRef = doc(db, "itens", id);
+      await updateDoc(itemRef, {
+        titulo: novoTitulo,
+        categoria: novaCategoria,
+        ano: novoAno,
+        extra: novoExtra,
+        descricao: novaDescricao
+      });
+
+      alert("Item atualizado com sucesso!");
+      botaoSalvar.textContent = "Salvar Item";
+      botaoSalvar.onclick = addItem;
+      limparCampos();
+      listarItens();
+    } catch (e) {
+      alert("Erro ao atualizar item: " + e.message);
+    }
+  };
+};
+
+// Função para limpar os campos do formulário
+function limparCampos() {
+  document.getElementById("titulo").value = "";
+  document.getElementById("categoria").value = "";
+  document.getElementById("ano").value = "";
+  document.getElementById("extra").value = "";
+  document.getElementById("descricao").value = "";
+}
+
+// Cria os botões do menu de categorias
 async function gerarMenuCategorias() {
   const menu = document.getElementById("menu-categorias");
   menu.innerHTML = "";
@@ -145,18 +195,18 @@ async function gerarMenuCategorias() {
   menu.appendChild(limpar);
 }
 
-// Filtro por categoria
+// Filtrar por categoria
 async function filtrarCategoria(categoria) {
   listarItens(categoria);
 }
 
-// Filtro por busca
+// Buscar por termo
 window.buscarItens = function () {
   const termo = document.getElementById("busca").value;
   listarItens(termo);
 };
 
-// Excluir item com confirmação
+// Deletar item
 window.deletarItem = async function (id) {
   const confirmacao = confirm("Tem certeza que deseja excluir este item?");
   if (!confirmacao) return;
@@ -169,5 +219,5 @@ window.deletarItem = async function (id) {
   }
 };
 
-// Inicializa a listagem ao carregar
+// Inicializar
 listarItens();
