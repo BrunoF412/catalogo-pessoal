@@ -1,28 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+// Versão com armazenamento local (localStorage) e suporte a imagem em base64 + exportação/backup
 
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyDDZRLnOgoA-ke9VX-Ky2iJu9WExFgd_Xk",
-  authDomain: "catalogo-pessoal-eda3c.firebaseapp.com",
-  projectId: "catalogo-pessoal-eda3c",
-  storageBucket: "catalogo-pessoal-eda3c.firebasestorage.app",
-  messagingSenderId: "536487039136",
-  appId: "1:536487039136:web:3e86b35121344adeb4f9c5"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Atualiza placeholder conforme a categoria
 window.atualizarCampoExtra = function () {
   const categoria = document.getElementById("categoria").value.toLowerCase();
   const extra = document.getElementById("extra");
@@ -38,57 +15,96 @@ window.atualizarCampoExtra = function () {
   }
 };
 
-// Adiciona novo item
-window.addItem = async function () {
+window.addItem = function () {
   const titulo = document.getElementById("titulo").value.trim().toUpperCase();
   const categoria = document.getElementById("categoria").value.trim();
   const ano = parseInt(document.getElementById("ano").value.trim());
   const descricao = document.getElementById("descricao").value.trim();
   const extra = document.getElementById("extra").value.trim();
+  const imagemInput = document.getElementById("imagem");
+  const file = imagemInput.files[0];
 
   if (!titulo || !categoria || isNaN(ano)) {
     alert("Preencha corretamente os campos Título, Categoria e Ano.");
     return;
   }
 
-  try {
-    await addDoc(collection(db, "itens"), {
+  const reader = new FileReader();
+  reader.onload = function () {
+    const imagemBase64 = reader.result;
+    const novoItem = {
+      id: Date.now().toString(),
       titulo,
       categoria,
       ano,
       descricao,
       extra,
-      criadoEm: new Date()
-    });
+      imagem: imagemBase64 || "",
+      criadoEm: new Date().toISOString()
+    };
+
+    const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
+    dados.push(novoItem);
+    localStorage.setItem("itensCatalogo", JSON.stringify(dados));
 
     alert("Item adicionado com sucesso!");
     limparCampos();
     listarItens();
-  } catch (e) {
-    alert("Erro ao adicionar item: " + e.message);
+  };
+
+  if (file) {
+    reader.readAsDataURL(file);
+  } else {
+    reader.onload(); // chama direto se não tiver imagem
   }
 };
 
-// Lista os itens
-async function listarItens(filtro = "") {
+window.exportarBackup = function () {
+  const dados = localStorage.getItem("itensCatalogo") || "[]";
+  const blob = new Blob([dados], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "catalogo_backup.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
+
+window.importarBackup = function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+      if (!Array.isArray(dados)) throw new Error("Formato inválido");
+      localStorage.setItem("itensCatalogo", JSON.stringify(dados));
+      listarItens();
+      alert("Backup importado com sucesso!");
+    } catch (err) {
+      alert("Erro ao importar backup: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+};
+
+function listarItens(filtro = "") {
   const lista = document.getElementById("itens-list");
   lista.innerHTML = "";
 
-  const querySnapshot = await getDocs(collection(db, "itens"));
+  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
   const categorias = {};
 
-  querySnapshot.forEach((docSnap) => {
-    const item = docSnap.data();
-    const id = docSnap.id;
-
+  dados.forEach((item) => {
     const termoBusca = filtro.toLowerCase();
     const textoCompleto = `${item.titulo} ${item.categoria} ${item.extra} ${item.ano} ${item.descricao}`.toLowerCase();
     if (!textoCompleto.includes(termoBusca)) return;
 
-    if (!categorias[item.categoria]) {
-      categorias[item.categoria] = [];
-    }
-    categorias[item.categoria].push({ id, ...item });
+    if (!categorias[item.categoria]) categorias[item.categoria] = [];
+    categorias[item.categoria].push(item);
   });
 
   for (const categoria in categorias) {
@@ -99,6 +115,7 @@ async function listarItens(filtro = "") {
     categorias[categoria].forEach((item) => {
       const li = document.createElement("li");
       li.innerHTML = `
+        ${item.imagem ? `<img src="${item.imagem}" alt="imagem">` : ""}
         <div>
           <strong>${item.titulo}</strong><br/>
           ${item.extra ? `<em>${item.extra}</em><br/>` : ""}
@@ -106,7 +123,7 @@ async function listarItens(filtro = "") {
           ${item.descricao}
         </div>
         <div class="acoes">
-          <button onclick="editarItem('${item.id}', \`${item.titulo}\`, \`${item.categoria}\`, '${item.ano}', \`${item.extra}\`, \`${item.descricao}\`)">✏️</button>
+          <button onclick="editarItem('${item.id}')">✏️</button>
           <button onclick="deletarItem('${item.id}')">🗑️</button>
         </div>
       `;
@@ -117,19 +134,21 @@ async function listarItens(filtro = "") {
   gerarMenuCategorias();
 }
 
-// Editar item existente
-window.editarItem = function (id, titulo, categoria, ano, extra, descricao) {
-  document.getElementById("titulo").value = titulo;
-  document.getElementById("categoria").value = categoria;
-  document.getElementById("ano").value = ano;
-  document.getElementById("extra").value = extra;
-  document.getElementById("descricao").value = descricao;
-  document.querySelector(".form-section").scrollIntoView({ behavior: "smooth" });
+window.editarItem = function (id) {
+  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
+  const item = dados.find((i) => i.id === id);
+  if (!item) return;
 
+  document.getElementById("titulo").value = item.titulo;
+  document.getElementById("categoria").value = item.categoria;
+  document.getElementById("ano").value = item.ano;
+  document.getElementById("extra").value = item.extra;
+  document.getElementById("descricao").value = item.descricao;
+  document.querySelector(".form-section").scrollIntoView({ behavior: "smooth" });
 
   const botaoSalvar = document.querySelector(".form-section button");
   botaoSalvar.textContent = "Atualizar Item";
-  botaoSalvar.onclick = async function () {
+  botaoSalvar.onclick = function () {
     const novoTitulo = document.getElementById("titulo").value.trim().toUpperCase();
     const novaCategoria = document.getElementById("categoria").value.trim();
     const novoAno = parseInt(document.getElementById("ano").value.trim());
@@ -141,48 +160,33 @@ window.editarItem = function (id, titulo, categoria, ano, extra, descricao) {
       return;
     }
 
-    try {
-      const itemRef = doc(db, "itens", id);
-      await updateDoc(itemRef, {
-        titulo: novoTitulo,
-        categoria: novaCategoria,
-        ano: novoAno,
-        extra: novoExtra,
-        descricao: novaDescricao
-      });
+    const novaLista = dados.map((i) =>
+      i.id === id ? { ...i, titulo: novoTitulo, categoria: novaCategoria, ano: novoAno, extra: novoExtra, descricao: novaDescricao } : i
+    );
 
-      alert("Item atualizado com sucesso!");
-      botaoSalvar.textContent = "Salvar Item";
-      botaoSalvar.onclick = addItem;
-      limparCampos();
-      listarItens();
-    } catch (e) {
-      alert("Erro ao atualizar item: " + e.message);
-    }
+    localStorage.setItem("itensCatalogo", JSON.stringify(novaLista));
+    botaoSalvar.textContent = "Salvar Item";
+    botaoSalvar.onclick = addItem;
+    limparCampos();
+    listarItens();
   };
 };
 
-// Função para limpar os campos do formulário
 function limparCampos() {
   document.getElementById("titulo").value = "";
   document.getElementById("categoria").value = "";
   document.getElementById("ano").value = "";
   document.getElementById("extra").value = "";
   document.getElementById("descricao").value = "";
+  document.getElementById("imagem").value = "";
 }
 
-// Cria os botões do menu de categorias
-async function gerarMenuCategorias() {
+function gerarMenuCategorias() {
   const menu = document.getElementById("menu-categorias");
   menu.innerHTML = "";
 
-  const querySnapshot = await getDocs(collection(db, "itens"));
-  const categorias = new Set();
-
-  querySnapshot.forEach((docSnap) => {
-    const item = docSnap.data();
-    categorias.add(item.categoria);
-  });
+  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
+  const categorias = new Set(dados.map((item) => item.categoria));
 
   categorias.forEach((cat) => {
     const btn = document.createElement("button");
@@ -197,29 +201,21 @@ async function gerarMenuCategorias() {
   menu.appendChild(limpar);
 }
 
-// Filtrar por categoria
-async function filtrarCategoria(categoria) {
+function filtrarCategoria(categoria) {
   listarItens(categoria);
 }
 
-// Buscar por termo
 window.buscarItens = function () {
   const termo = document.getElementById("busca").value;
   listarItens(termo);
 };
 
-// Deletar item
-window.deletarItem = async function (id) {
-  const confirmacao = confirm("Tem certeza que deseja excluir este item?");
-  if (!confirmacao) return;
-
-  try {
-    await deleteDoc(doc(db, "itens", id));
-    listarItens();
-  } catch (e) {
-    alert("Erro ao deletar: " + e.message);
-  }
+window.deletarItem = function (id) {
+  if (!confirm("Tem certeza que deseja excluir este item?")) return;
+  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
+  const novaLista = dados.filter((item) => item.id !== id);
+  localStorage.setItem("itensCatalogo", JSON.stringify(novaLista));
+  listarItens();
 };
 
-// Inicializar
 listarItens();

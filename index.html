@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Catálogo Pessoal</title>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -14,35 +14,27 @@
       <h1>Catálogo Pessoal</h1>
       <h2>Adicionar Item</h2>
 
-      <!-- Campo de título convertido automaticamente para maiúsculo -->
-      <input
-        type="text"
-        id="titulo"
-        placeholder="Título"
-        oninput="this.value = this.value.toUpperCase()"
-      />
-
-      <input
-        type="text"
-        id="categoria"
-        placeholder="Categoria (CD, Livro, Jogo...)"
-        oninput="atualizarCampoExtra()"
-      />
-
+      <input type="text" id="titulo" placeholder="Título" oninput="this.value = this.value.toUpperCase()" />
+      <input type="text" id="categoria" placeholder="Categoria (CD, Livro, Jogo...)" oninput="atualizarCampoExtra()" />
       <input type="number" id="ano" placeholder="Ano" />
       <input type="text" id="extra" placeholder="Informação extra (ex: Autor ou Banda)" />
       <textarea id="descricao" placeholder="Descrição"></textarea>
+      <input type="file" id="imagem" accept="image/*" />
       <button onclick="addItem()">Salvar Item</button>
+
+      <hr />
+
+      <button onclick="exportarBackup()">📤 Exportar Backup</button>
+
+      <label class="importar-label">
+        📥 Importar Backup
+        <input type="file" onchange="importarBackup(event)" style="display: none" />
+      </label>
     </aside>
 
     <main class="catalog-section">
       <div class="busca-container">
-        <input
-          type="text"
-          id="busca"
-          placeholder="Buscar por título, autor, banda..."
-          oninput="buscarItens()"
-        />
+        <input type="text" id="busca" placeholder="Buscar por título, autor, banda..." oninput="buscarItens()" />
       </div>
       <div id="menu-categorias" class="menu"></div>
       <h2>Itens cadastrados</h2>

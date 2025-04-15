@@ -231,3 +231,40 @@ li button:hover {
     margin-top: 0;
   }
 }
+.filtros-avancados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.filtros-avancados input,
+.filtros-avancados select {
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #334155;
+  color: #f1f5f9;
+}
+.importar-label {
+  display: inline-block;
+  background: #475569;
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 10px;
+}
+.importar-label {
+  display: inline-block;
+  background: #475569;
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 10px;
+}
