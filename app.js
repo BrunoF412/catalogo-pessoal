@@ -124,6 +124,8 @@ window.editarItem = function (id, titulo, categoria, ano, extra, descricao) {
   document.getElementById("ano").value = ano;
   document.getElementById("extra").value = extra;
   document.getElementById("descricao").value = descricao;
+  document.querySelector(".form-section").scrollIntoView({ behavior: "smooth" });
+
 
   const botaoSalvar = document.querySelector(".form-section button");
   botaoSalvar.textContent = "Atualizar Item";

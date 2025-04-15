@@ -13,8 +13,22 @@
     <aside class="form-section">
       <h1>Catálogo Pessoal</h1>
       <h2>Adicionar Item</h2>
-      <input type="text" id="titulo" placeholder="Título" />
-      <input type="text" id="categoria" placeholder="Categoria (CD, Livro, Jogo...)" oninput="atualizarCampoExtra()" />
+
+      <!-- Campo de título convertido automaticamente para maiúsculo -->
+      <input
+        type="text"
+        id="titulo"
+        placeholder="Título"
+        oninput="this.value = this.value.toUpperCase()"
+      />
+
+      <input
+        type="text"
+        id="categoria"
+        placeholder="Categoria (CD, Livro, Jogo...)"
+        oninput="atualizarCampoExtra()"
+      />
+
       <input type="number" id="ano" placeholder="Ano" />
       <input type="text" id="extra" placeholder="Informação extra (ex: Autor ou Banda)" />
       <textarea id="descricao" placeholder="Descrição"></textarea>
