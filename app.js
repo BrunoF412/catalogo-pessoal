@@ -1,221 +1,375 @@
-// Versão com armazenamento local (localStorage) e suporte a imagem em base64 + exportação/backup
+// ────────────────────────────────────────────────────────────────
+// INICIALIZAÇÃO E ARMAZENAMENTO
+// ────────────────────────────────────────────────────────────────
+let modoAtual = 'catalogo';
+let catalogo  = JSON.parse(localStorage.getItem('catalogo')) || [];
+let listas    = JSON.parse(localStorage.getItem('listas'))   || [];
 
-window.atualizarCampoExtra = function () {
-  const categoria = document.getElementById("categoria").value.toLowerCase();
-  const extra = document.getElementById("extra");
+// migrate antigas listas (strings → {text,checked})
+listas = listas.map(l => ({
+  id:        l.id,
+  nome:      l.nome,
+  collapsed: !!l.collapsed,
+  itens:     (l.itens||[]).map(it =>
+    typeof it === 'string' ? { text: it, checked: false } : it
+  )
+}));
 
-  if (categoria.includes("livro")) {
-    extra.placeholder = "Autor";
-  } else if (categoria.includes("cd")) {
-    extra.placeholder = "Banda";
-  } else if (categoria.includes("jogo")) {
-    extra.placeholder = "Estúdio";
-  } else {
-    extra.placeholder = "Informação extra (ex: Autor ou Banda)";
-  }
+window.onload = function() {
+  exibirModo();
+  listarCatalogo();
+  listarListas();
 };
 
-window.addItem = function () {
-  const titulo = document.getElementById("titulo").value.trim().toUpperCase();
-  const categoria = document.getElementById("categoria").value.trim();
-  const ano = parseInt(document.getElementById("ano").value.trim());
-  const descricao = document.getElementById("descricao").value.trim();
-  const extra = document.getElementById("extra").value.trim();
-  const imagemInput = document.getElementById("imagem");
-  const file = imagemInput.files[0];
+// ────────────────────────────────────────────────────────────────
+// CONTROLE DE MODO
+// ────────────────────────────────────────────────────────────────
+window.setModo = function(modo) {
+  modoAtual = modo;
+  exibirModo();
+};
 
-  if (!titulo || !categoria || isNaN(ano)) {
-    alert("Preencha corretamente os campos Título, Categoria e Ano.");
-    return;
-  }
+function exibirModo() {
+  document.getElementById('modo-catalogo').style.display = modoAtual==='catalogo' ? 'block' : 'none';
+  document.getElementById('modo-lista')   .style.display = modoAtual==='lista'    ? 'block' : 'none';
+  document.getElementById('btnCatalogo').classList.toggle('modo-ativo', modoAtual==='catalogo');
+  document.getElementById('btnLista')   .classList.toggle('modo-ativo', modoAtual==='lista');
+}
 
-  const reader = new FileReader();
-  reader.onload = function () {
-    const imagemBase64 = reader.result;
-    const novoItem = {
-      id: Date.now().toString(),
-      titulo,
-      categoria,
-      ano,
-      descricao,
-      extra,
-      imagem: imagemBase64 || "",
-      criadoEm: new Date().toISOString()
-    };
+// ────────────────────────────────────────────────────────────────
+// CATÁLOGO
+// ────────────────────────────────────────────────────────────────
+function salvarCatalogo() {
+  localStorage.setItem('catalogo', JSON.stringify(catalogo));
+}
 
-    const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
-    dados.push(novoItem);
-    localStorage.setItem("itensCatalogo", JSON.stringify(dados));
-
-    alert("Item adicionado com sucesso!");
-    limparCampos();
-    listarItens();
-  };
-
-  if (file) {
+function getBase64FromFile(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
     reader.readAsDataURL(file);
-  } else {
-    reader.onload(); // chama direto se não tiver imagem
+  });
+}
+
+function limparForm() {
+  ['titulo','categoria','ano','extra','descricao','imagem'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('nome-imagem').textContent = 'Nenhuma imagem escolhida';
+  const btn = document.getElementById('btnSalvar');
+  btn.textContent = 'Salvar Item';
+  btn.onclick = addItem;
+}
+
+window.addItem = function() {
+  const titulo    = document.getElementById('titulo').value.trim().toUpperCase();
+  const categoria = document.getElementById('categoria').value.trim();
+  const ano       = document.getElementById('ano').value.trim();
+  const extra     = document.getElementById('extra').value.trim();
+  const descricao = document.getElementById('descricao').value.trim();
+  const inputImg  = document.getElementById('imagem');
+
+  if (!titulo||!categoria||!ano) {
+    return alert('Preencha Título, Categoria e Ano.');
   }
+
+  const file = inputImg.files[0];
+  const imagemPromise = file ? getBase64FromFile(file) : Promise.resolve('');
+
+  imagemPromise.then(base64 => {
+    catalogo.push({
+      id:        Date.now(),
+      titulo, categoria, ano, extra, descricao,
+      imagem:    base64,
+      criadoEm:  new Date()
+    });
+    salvarCatalogo();
+    limparForm();
+    listarCatalogo();
+  });
 };
 
-window.exportarBackup = function () {
-  const dados = localStorage.getItem("itensCatalogo") || "[]";
-  const blob = new Blob([dados], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+function listarCatalogo(filtro='') {
+  const ul = document.getElementById('itens-list');
+  ul.innerHTML = '';
+  const grupos = {};
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "catalogo_backup.json";
+  catalogo
+    .filter(item => {
+      const bus = filtro.toLowerCase();
+      return (
+        item.titulo.toLowerCase().includes(bus) ||
+        item.categoria.toLowerCase().includes(bus) ||
+        item.extra.toLowerCase().includes(bus) ||
+        item.ano.includes(bus) ||
+        item.descricao.toLowerCase().includes(bus)
+      );
+    })
+    .forEach(item => {
+      grupos[item.categoria] = grupos[item.categoria]||[];
+      grupos[item.categoria].push(item);
+    });
+
+  for (const cat in grupos) {
+    const h3 = document.createElement('h3');
+    h3.textContent = cat.toUpperCase();
+    ul.appendChild(h3);
+
+    grupos[cat].forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        ${item.imagem? `<img src="${item.imagem}" alt="">` : ''}
+        <div>
+          <strong>${item.titulo}</strong><br>
+          ${item.extra? `<em>${item.extra}</em><br>` : ''}
+          ${item.categoria} - ${item.ano}<br>
+          ${item.descricao}
+        </div>
+        <div class="acoes">
+          <button onclick="editarItem(${item.id})">✏️</button>
+          <button onclick="excluirItem(${item.id})">🗑️</button>
+        </div>
+      `;
+      ul.appendChild(li);
+    });
+  }
+}
+
+window.editarItem = function(id) {
+  const item = catalogo.find(i=>i.id===id);
+  if (!item) return;
+  document.getElementById('titulo').value    = item.titulo;
+  document.getElementById('categoria').value = item.categoria;
+  document.getElementById('ano').value       = item.ano;
+  document.getElementById('extra').value     = item.extra;
+  document.getElementById('descricao').value = item.descricao;
+
+  const btn = document.getElementById('btnSalvar');
+  btn.textContent = 'Atualizar Item';
+  btn.onclick = function() { atualizarItem(id) };
+  document.querySelector('.form-section').scrollIntoView({ behavior:'smooth' });
+};
+
+function atualizarItem(id) {
+  const titulo    = document.getElementById('titulo').value.trim().toUpperCase();
+  const categoria = document.getElementById('categoria').value.trim();
+  const ano       = document.getElementById('ano').value.trim();
+  const extra     = document.getElementById('extra').value.trim();
+  const descricao = document.getElementById('descricao').value.trim();
+  const inputImg  = document.getElementById('imagem');
+
+  const item = catalogo.find(i=>i.id===id);
+  if (!item) return;
+
+  const file = inputImg.files[0];
+  const imgPromise = file ? getBase64FromFile(file) : Promise.resolve(item.imagem);
+
+  imgPromise.then(base64 => {
+    Object.assign(item, { titulo, categoria, ano, extra, descricao, imagem: base64 });
+    salvarCatalogo();
+    limparForm();
+    listarCatalogo();
+  });
+}
+
+window.excluirItem = function(id) {
+  if (!confirm('Excluir este item?')) return;
+  catalogo = catalogo.filter(i=>i.id!==id);
+  salvarCatalogo();
+  listarCatalogo();
+};
+
+window.buscarItens = function() {
+  listarCatalogo(document.getElementById('busca').value);
+};
+
+// ────────────────────────────────────────────────────────────────
+// BACKUP DE CATÁLOGO
+// ────────────────────────────────────────────────────────────────
+window.exportarBackup = function() {
+  const data = JSON.stringify(catalogo, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `catalogo_${Date.now()}.json`;
   a.click();
-
   URL.revokeObjectURL(url);
 };
 
-window.importarBackup = function (event) {
-  const file = event.target.files[0];
+window.importarBackup = function(e) {
+  const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
-  reader.onload = function (e) {
+  reader.onload = () => {
     try {
-      const dados = JSON.parse(e.target.result);
-      if (!Array.isArray(dados)) throw new Error("Formato inválido");
-      localStorage.setItem("itensCatalogo", JSON.stringify(dados));
-      listarItens();
-      alert("Backup importado com sucesso!");
-    } catch (err) {
-      alert("Erro ao importar backup: " + err.message);
+      const arr = JSON.parse(reader.result);
+      if (!Array.isArray(arr)) throw new Error('Formato inválido');
+      catalogo = arr;
+      salvarCatalogo();
+      listarCatalogo();
+      alert('Backup importado!');
+    } catch(err) {
+      alert('Erro ao importar: '+err.message);
     }
   };
   reader.readAsText(file);
 };
 
-function listarItens(filtro = "") {
-  const lista = document.getElementById("itens-list");
-  lista.innerHTML = "";
+// ────────────────────────────────────────────────────────────────
+// LISTAS PESSOAIS
+// ────────────────────────────────────────────────────────────────
+function salvarListas() {
+  localStorage.setItem('listas', JSON.stringify(listas));
+}
 
-  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
-  const categorias = {};
-
-  dados.forEach((item) => {
-    const termoBusca = filtro.toLowerCase();
-    const textoCompleto = `${item.titulo} ${item.categoria} ${item.extra} ${item.ano} ${item.descricao}`.toLowerCase();
-    if (!textoCompleto.includes(termoBusca)) return;
-
-    if (!categorias[item.categoria]) categorias[item.categoria] = [];
-    categorias[item.categoria].push(item);
+window.addLista = function() {
+  const nome = document.getElementById('nome-lista').value.trim();
+  if (!nome) return alert('Dê um nome à lista');
+  const inputs = document.querySelectorAll('.item-lista');
+  const itens  = [];
+  inputs.forEach(i => {
+    if (i.value.trim()) itens.push({ text:i.value.trim(), checked:false });
   });
+  if (!itens.length) return alert('Adicione ao menos 1 item');
+  listas.push({ id:Date.now(), nome, itens, collapsed:false });
+  salvarListas();
+  limparListaForm();
+  listarListas();
+};
 
-  for (const categoria in categorias) {
-    const tituloCat = document.createElement("h3");
-    tituloCat.textContent = categoria.toUpperCase();
-    lista.appendChild(tituloCat);
+function listarListas() {
+  const ul = document.getElementById('listas-salvas');
+  ul.innerHTML = '';
+  listas.forEach(lista => {
+    const li = document.createElement('li');
+    li.dataset.id = lista.id;
+    if (lista.collapsed) li.classList.add('collapsed');
+    else li.classList.remove('collapsed');
 
-    categorias[categoria].forEach((item) => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        ${item.imagem ? `<img src="${item.imagem}" alt="imagem">` : ""}
-        <div>
-          <strong>${item.titulo}</strong><br/>
-          ${item.extra ? `<em>${item.extra}</em><br/>` : ""}
-          ${item.categoria} - ${item.ano}<br/>
-          ${item.descricao}
-        </div>
-        <div class="acoes">
-          <button onclick="editarItem('${item.id}')">✏️</button>
-          <button onclick="deletarItem('${item.id}')">🗑️</button>
-        </div>
-      `;
-      lista.appendChild(li);
+    const header = document.createElement('div');
+    header.className = 'lista-header';
+
+    const done = lista.itens.filter(it=>it.checked).length;
+    const txt  = document.createElement('span');
+    txt.className = 'lista-nome';
+    txt.textContent = `${lista.nome} (${done}/${lista.itens.length})`;
+    header.appendChild(txt);
+
+    const btnToggle = document.createElement('button');
+    btnToggle.textContent = lista.collapsed ? '▶' : '▼';
+    btnToggle.title = 'Mostrar/ocultar';
+    btnToggle.onclick = ()=>toggleCollapse(lista.id);
+    header.appendChild(btnToggle);
+
+    const btnDel = document.createElement('button');
+    btnDel.innerHTML = '🗑️';
+    btnDel.title     = 'Excluir lista';
+    btnDel.onclick   = ()=>excluirLista(lista.id);
+    header.appendChild(btnDel);
+
+    li.appendChild(header);
+
+    const container = document.createElement('div');
+    container.className = 'itens-lista-dinamica';
+
+    lista.itens.forEach((it, idx) => {
+      const div = document.createElement('div');
+      div.className     = 'checklist-item';
+      div.draggable     = true;
+      div.dataset.listId  = lista.id;
+      div.dataset.index   = idx;
+
+      const cb = document.createElement('input');
+      cb.type    = 'checkbox';
+      cb.checked = it.checked;
+      cb.onchange = ()=>toggleCheck(lista.id, idx);
+
+      const label = document.createElement('label');
+      label.textContent = it.text;
+
+      if (it.checked) div.classList.add('checked');
+
+      div.addEventListener('dragstart', dragStart);
+      div.addEventListener('dragover',  dragOver);
+      div.addEventListener('drop',      dropItem);
+
+      div.appendChild(cb);
+      div.appendChild(label);
+      container.appendChild(div);
     });
-  }
 
-  gerarMenuCategorias();
-}
-
-window.editarItem = function (id) {
-  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
-  const item = dados.find((i) => i.id === id);
-  if (!item) return;
-
-  document.getElementById("titulo").value = item.titulo;
-  document.getElementById("categoria").value = item.categoria;
-  document.getElementById("ano").value = item.ano;
-  document.getElementById("extra").value = item.extra;
-  document.getElementById("descricao").value = item.descricao;
-  document.querySelector(".form-section").scrollIntoView({ behavior: "smooth" });
-
-  const botaoSalvar = document.querySelector(".form-section button");
-  botaoSalvar.textContent = "Atualizar Item";
-  botaoSalvar.onclick = function () {
-    const novoTitulo = document.getElementById("titulo").value.trim().toUpperCase();
-    const novaCategoria = document.getElementById("categoria").value.trim();
-    const novoAno = parseInt(document.getElementById("ano").value.trim());
-    const novoExtra = document.getElementById("extra").value.trim();
-    const novaDescricao = document.getElementById("descricao").value.trim();
-
-    if (!novoTitulo || !novaCategoria || isNaN(novoAno)) {
-      alert("Preencha corretamente os campos Título, Categoria e Ano.");
-      return;
-    }
-
-    const novaLista = dados.map((i) =>
-      i.id === id ? { ...i, titulo: novoTitulo, categoria: novaCategoria, ano: novoAno, extra: novoExtra, descricao: novaDescricao } : i
-    );
-
-    localStorage.setItem("itensCatalogo", JSON.stringify(novaLista));
-    botaoSalvar.textContent = "Salvar Item";
-    botaoSalvar.onclick = addItem;
-    limparCampos();
-    listarItens();
-  };
-};
-
-function limparCampos() {
-  document.getElementById("titulo").value = "";
-  document.getElementById("categoria").value = "";
-  document.getElementById("ano").value = "";
-  document.getElementById("extra").value = "";
-  document.getElementById("descricao").value = "";
-  document.getElementById("imagem").value = "";
-}
-
-function gerarMenuCategorias() {
-  const menu = document.getElementById("menu-categorias");
-  menu.innerHTML = "";
-
-  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
-  const categorias = new Set(dados.map((item) => item.categoria));
-
-  categorias.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.textContent = cat;
-    btn.onclick = () => filtrarCategoria(cat);
-    menu.appendChild(btn);
+    li.appendChild(container);
+    ul.appendChild(li);
   });
-
-  const limpar = document.createElement("button");
-  limpar.textContent = "Todos";
-  limpar.onclick = () => listarItens();
-  menu.appendChild(limpar);
 }
 
-function filtrarCategoria(categoria) {
-  listarItens(categoria);
+function toggleCollapse(id) {
+  listas = listas.map(l => {
+    if (l.id === id) l.collapsed = !l.collapsed;
+    return l;
+  });
+  salvarListas();
+  listarListas();
 }
 
-window.buscarItens = function () {
-  const termo = document.getElementById("busca").value;
-  listarItens(termo);
+function toggleCheck(listId, idx) {
+  const l = listas.find(x=>x.id===listId);
+  l.itens[idx].checked = !l.itens[idx].checked;
+  salvarListas();
+  listarListas();
+}
+
+window.excluirLista = function(id) {
+  if (!confirm('Excluir esta lista?')) return;
+  listas = listas.filter(l=>l.id!==id);
+  salvarListas();
+  listarListas();
 };
 
-window.deletarItem = function (id) {
-  if (!confirm("Tem certeza que deseja excluir este item?")) return;
-  const dados = JSON.parse(localStorage.getItem("itensCatalogo") || "[]");
-  const novaLista = dados.filter((item) => item.id !== id);
-  localStorage.setItem("itensCatalogo", JSON.stringify(novaLista));
-  listarItens();
+window.adicionarItemTemporario = function() {
+  const c   = document.getElementById('itens-temp');
+  const inp = document.createElement('input');
+  inp.className   = 'item-lista';
+  inp.placeholder = 'Novo item';
+  c.appendChild(inp);
 };
 
-listarItens();
+function limparListaForm() {
+  document.getElementById('nome-lista').value     = '';
+  document.getElementById('itens-temp').innerHTML = '';
+}
+
+// ────────────────────────────────────────────────────────────────
+// DRAG & DROP
+// ────────────────────────────────────────────────────────────────
+let dragSrc = null;
+function dragStart(e) {
+  dragSrc = e.currentTarget;
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function dropItem(e) {
+  e.preventDefault();
+  const tgt    = e.currentTarget;
+  if (tgt===dragSrc) return;
+  const fromIdx = +dragSrc.dataset.index;
+  const toIdx   = +tgt.dataset.index;
+  const listId  = +dragSrc.dataset.listId;
+  const l = listas.find(x=>x.id===listId);
+  const [m] = l.itens.splice(fromIdx,1);
+  l.itens.splice(toIdx,0,m);
+  salvarListas();
+  listarListas();
+}
+
+// mostrar nome do arquivo de backup
+window.handleFileImport = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('nome-backup').textContent = file.name;
+  importarBackup(e);
+};

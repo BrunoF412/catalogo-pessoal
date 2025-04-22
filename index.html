@@ -2,44 +2,96 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Catálogo Pessoal</title>
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="app.js"></script>
 </head>
 <body>
-  <div class="container">
-    <aside class="form-section">
-      <h1>Catálogo Pessoal</h1>
-      <h2>Adicionar Item</h2>
-
-      <input type="text" id="titulo" placeholder="Título" oninput="this.value = this.value.toUpperCase()" />
-      <input type="text" id="categoria" placeholder="Categoria (CD, Livro, Jogo...)" oninput="atualizarCampoExtra()" />
-      <input type="number" id="ano" placeholder="Ano" />
-      <input type="text" id="extra" placeholder="Informação extra (ex: Autor ou Banda)" />
-      <textarea id="descricao" placeholder="Descrição"></textarea>
-      <input type="file" id="imagem" accept="image/*" />
-      <button onclick="addItem()">Salvar Item</button>
-
-      <hr />
-
-      <button onclick="exportarBackup()">📤 Exportar Backup</button>
-
-      <label class="importar-label">
-        📥 Importar Backup
-        <input type="file" onchange="importarBackup(event)" style="display: none" />
-      </label>
-    </aside>
-
-    <main class="catalog-section">
-      <div class="busca-container">
-        <input type="text" id="busca" placeholder="Buscar por título, autor, banda..." oninput="buscarItens()" />
-      </div>
-      <div id="menu-categorias" class="menu"></div>
-      <h2>Itens cadastrados</h2>
-      <ul id="itens-list"></ul>
-    </main>
+  <!-- Botões de troca de modo -->
+  <div class="modo-selector">
+    <button id="btnCatalogo" onclick="setModo('catalogo')">Catálogo Pessoal</button>
+    <button id="btnLista"   onclick="setModo('lista')">Listas Pessoais</button>
   </div>
+
+  <div class="container">
+
+    <!-- ─── MODO CATÁLOGO ─────────────────────────────────────── -->
+    <div id="modo-catalogo">
+      <aside class="form-section">
+        <h1>Catálogo Pessoal</h1>
+        <h2>Adicionar Item</h2>
+
+        <input type="text"   id="titulo"    placeholder="Título" oninput="this.value = this.value.toUpperCase()"/>
+        <input type="text"   id="categoria" placeholder="Categoria (CD, Livro, Jogo...)" oninput="atualizarCampoExtra()"/>
+        <input type="number" id="ano"       placeholder="Ano"/>
+        <input type="text"   id="extra"     placeholder="Informação extra (ex: Autor ou Banda)"/>
+        <textarea           id="descricao" placeholder="Descrição"></textarea>
+
+        <!-- Botão estilizado de imagem -->
+        <div class="importar-wrapper">
+          <button type="button" onclick="document.getElementById('imagem').click()">📷 Enviar Imagem</button>
+          <span id="nome-imagem">Nenhuma imagem escolhida</span>
+          <input type="file" id="imagem" accept="image/*" capture="environment" onchange="atualizarNomeImagem()" style="display: none;" />
+        </div>
+
+        <button id="btnSalvar" onclick="addItem()">Salvar Item</button>
+        <button onclick="exportarBackup()">📤 Exportar Backup</button>
+
+        <!-- Botão estilizado de backup -->
+        <div class="importar-wrapper">
+          <button type="button" onclick="document.getElementById('input-backup').click()">📥 Importar Backup</button>
+          <span id="nome-backup">Nenhum arquivo escolhido</span>
+          <input type="file" id="input-backup" onchange="handleFileImport(event)" style="display: none;" />
+        </div>
+      </aside>
+
+      <main class="catalog-section">
+        <div class="busca-container">
+          <input type="text"
+                 id="busca"
+                 placeholder="Buscar por título, autor, banda..."
+                 oninput="buscarItens()"/>
+        </div>
+        <div id="menu-categorias" class="menu"></div>
+        <h2>Itens cadastrados</h2>
+        <ul id="itens-list"></ul>
+      </main>
+    </div>
+
+    <!-- ─── MODO LISTA PESSOAL ───────────────────────────────── -->
+    <div id="modo-lista" style="display: none;">
+      <aside class="form-section">
+        <h1>Lista Pessoal</h1>
+        <input type="text" id="nome-lista" placeholder="Nome da lista"/>
+        <div id="itens-temp"></div>
+        <button onclick="adicionarItemTemporario()">+ Adicionar Item</button>
+        <button onclick="addLista()">Salvar Lista</button>
+      </aside>
+
+      <main class="catalog-section">
+        <h2>Listas Salvas</h2>
+        <ul id="listas-salvas"></ul>
+      </main>
+    </div>
+
+  </div>
+
+  <!-- Script para mostrar o nome do arquivo -->
+  <script>
+    function atualizarNomeImagem() {
+      const input = document.getElementById('imagem');
+      const span = document.getElementById('nome-imagem');
+      span.textContent = input.files.length ? input.files[0].name : 'Nenhuma imagem escolhida';
+    }
+
+    function handleFileImport(e) {
+      const input = e.target;
+      const span = document.getElementById('nome-backup');
+      span.textContent = input.files.length ? input.files[0].name : 'Nenhum arquivo escolhido';
+      importarBackup(e); // chama função original
+    }
+  </script>
 </body>
 </html>
