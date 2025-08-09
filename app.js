@@ -1,8 +1,13 @@
+// ────────────────────────────────────────────────────────────────
+// ESTADO
+// ────────────────────────────────────────────────────────────────
 let modoAtual = 'catalogo';
 let catalogo = JSON.parse(localStorage.getItem('catalogo')) || [];
 let listas = JSON.parse(localStorage.getItem('listas')) || [];
 let idListaEditando = null;
+let filtroCategoria = 'todas';
 
+// migração de listas antigas (string -> objeto)
 listas = listas.map(l => ({
   id: l.id,
   nome: l.nome,
@@ -12,13 +17,45 @@ listas = listas.map(l => ({
   )
 }));
 
+// Normalização de categoria
+function canonCategoria(v) {
+  const t = (v || '').toString().trim().toUpperCase();
+  if (['CD','LIVRO','VINIL'].includes(t)) return t;
+  if (['LP','RECORD'].includes(t)) return 'VINIL';
+  return 'LIVRO';
+}
+
+// ────────────────────────────────────────────────────────────────
 window.onload = function () {
+  // bind dos inputs (nome do arquivo escolhido)
+  const inputImagem = document.getElementById('imagem');
+  const spanImg = document.getElementById('nome-imagem');
+  if (inputImagem) {
+    inputImagem.addEventListener('change', () => {
+      spanImg.textContent = inputImagem.files.length ? inputImagem.files[0].name : 'Nenhuma imagem escolhida';
+    });
+  }
+  const inputBackup = document.getElementById('input-backup');
+  const spanBackup = document.getElementById('nome-backup');
+  if (inputBackup) {
+    inputBackup.addEventListener('change', (e) => {
+      spanBackup.textContent = inputBackup.files.length ? inputBackup.files[0].name : 'Nenhum arquivo escolhido';
+      importarBackup(e);
+    });
+  }
+  // botão salvar (pode mudar para atualizar)
+  const btn = document.getElementById('btnSalvar');
+  if (btn) btn.onclick = addItem;
+
   exibirModo();
+  construirMenuCategorias();
   listarCatalogo();
   listarListas();
 };
 
-// MODO
+// ────────────────────────────────────────────────────────────────
+// CONTROLE DE MODO
+// ────────────────────────────────────────────────────────────────
 window.setModo = function (modo) {
   modoAtual = modo;
   exibirModo();
@@ -31,9 +68,10 @@ function exibirModo() {
   document.getElementById('btnLista').classList.toggle('modo-ativo', modoAtual === 'lista');
 }
 
-// CATALOGO
+// ────────────────────────────────────────────────────────────────
 function salvarCatalogo() {
   localStorage.setItem('catalogo', JSON.stringify(catalogo));
+  construirMenuCategorias();
 }
 
 function getBase64FromFile(file) {
@@ -46,17 +84,22 @@ function getBase64FromFile(file) {
 
 function limparForm() {
   ['titulo', 'categoria', 'ano', 'extra', 'descricao', 'imagem'].forEach(id => {
-    document.getElementById(id).value = '';
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'categoria' ? 'LIVRO' : '';
   });
-  document.getElementById('nome-imagem').textContent = 'Nenhuma imagem escolhida';
+  const span = document.getElementById('nome-imagem');
+  if (span) span.textContent = 'Nenhuma imagem escolhida';
   const btn = document.getElementById('btnSalvar');
   btn.textContent = 'Salvar Item';
   btn.onclick = addItem;
 }
 
+// ────────────────────────────────────────────────────────────────
+// CATALOGO – CRUD
+// ────────────────────────────────────────────────────────────────
 window.addItem = function () {
   const titulo = document.getElementById('titulo').value.trim().toUpperCase();
-  const categoria = document.getElementById('categoria').value.trim();
+  const categoria = canonCategoria(document.getElementById('categoria').value);
   const ano = document.getElementById('ano').value.trim();
   const extra = document.getElementById('extra').value.trim();
   const descricao = document.getElementById('descricao').value.trim();
@@ -72,7 +115,7 @@ window.addItem = function () {
       id: Date.now(),
       titulo, categoria, ano, extra, descricao,
       imagem: base64,
-      criadoEm: new Date()
+      criadoEm: new Date().toISOString()
     });
     salvarCatalogo();
     limparForm();
@@ -80,60 +123,14 @@ window.addItem = function () {
   });
 };
 
-function listarCatalogo(filtro = '') {
-  const ul = document.getElementById('itens-list');
-  ul.innerHTML = '';
-  const grupos = {};
-
-  catalogo
-    .filter(item => {
-      const bus = filtro.toLowerCase();
-      return (
-        item.titulo.toLowerCase().includes(bus) ||
-        item.categoria.toLowerCase().includes(bus) ||
-        item.extra.toLowerCase().includes(bus) ||
-        item.ano.includes(bus) ||
-        item.descricao.toLowerCase().includes(bus)
-      );
-    })
-    .forEach(item => {
-      grupos[item.categoria] = grupos[item.categoria] || [];
-      grupos[item.categoria].push(item);
-    });
-
-  for (const cat in grupos) {
-    const h3 = document.createElement('h3');
-    h3.textContent = cat.toUpperCase();
-    ul.appendChild(h3);
-
-    grupos[cat].forEach(item => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        ${item.imagem ? `<img src="${item.imagem}" alt="">` : ''}
-        <div>
-          <strong>${item.titulo}</strong><br>
-          ${item.extra ? `<em>${item.extra}</em><br>` : ''}
-          ${item.categoria} - ${item.ano}<br>
-          ${item.descricao}
-        </div>
-        <div class="acoes">
-          <button onclick="editarItem(${item.id})">✏️</button>
-          <button onclick="excluirItem(${item.id})">🗑️</button>
-        </div>
-      `;
-      ul.appendChild(li);
-    });
-  }
-}
-
 window.editarItem = function (id) {
   const item = catalogo.find(i => i.id === id);
   if (!item) return;
   document.getElementById('titulo').value = item.titulo;
   document.getElementById('categoria').value = item.categoria;
   document.getElementById('ano').value = item.ano;
-  document.getElementById('extra').value = item.extra;
-  document.getElementById('descricao').value = item.descricao;
+  document.getElementById('extra').value = item.extra || '';
+  document.getElementById('descricao').value = item.descricao || '';
 
   const btn = document.getElementById('btnSalvar');
   btn.textContent = 'Atualizar Item';
@@ -143,7 +140,7 @@ window.editarItem = function (id) {
 
 function atualizarItem(id) {
   const titulo = document.getElementById('titulo').value.trim().toUpperCase();
-  const categoria = document.getElementById('categoria').value.trim();
+  const categoria = canonCategoria(document.getElementById('categoria').value);
   const ano = document.getElementById('ano').value.trim();
   const extra = document.getElementById('extra').value.trim();
   const descricao = document.getElementById('descricao').value.trim();
@@ -174,7 +171,154 @@ window.buscarItens = function () {
   listarCatalogo(document.getElementById('busca').value);
 };
 
+// ────────────────────────────────────────────────────────────────
+// CATALOGO – FILTROS, LISTAGEM EM GRID E LIGHTBOX
+// ────────────────────────────────────────────────────────────────
+function construirMenuCategorias() {
+  const el = document.getElementById('menu-categorias');
+  if (!el) return;
+  el.innerHTML = '';
+
+  // contagens por categoria
+  const counts = { CD: 0, LIVRO: 0, VINIL: 0 };
+  catalogo.forEach(i => {
+    const c = canonCategoria(i.categoria);
+    if (counts[c] !== undefined) counts[c]++;
+  });
+
+  const chips = [
+    { id: 'todas', label: `Todas (${catalogo.length})` },
+    { id: 'CD',    label: `CD (${counts.CD})` },
+    { id: 'LIVRO', label: `LIVRO (${counts.LIVRO})` },
+    { id: 'VINIL', label: `VINIL (${counts.VINIL})` },
+  ];
+
+  chips.forEach(ch => {
+    const b = document.createElement('button');
+    b.textContent = ch.label;
+    if (filtroCategoria === ch.id) b.classList.add('active');
+    b.onclick = () => { filtroCategoria = ch.id; construirMenuCategorias(); listarCatalogo(); };
+    el.appendChild(b);
+  });
+}
+
+function listarCatalogo(filtroTexto = '') {
+  const grid = document.getElementById('itens-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const ftxt = filtroTexto.toLowerCase();
+
+  const lista = catalogo
+    .filter(item => {
+      const passText =
+        item.titulo.toLowerCase().includes(ftxt) ||
+        canonCategoria(item.categoria).toLowerCase().includes(ftxt) ||
+        (item.extra||'').toLowerCase().includes(ftxt) ||
+        (item.ano||'').toString().includes(ftxt) ||
+        (item.descricao||'').toLowerCase().includes(ftxt);
+
+      const passCat = filtroCategoria === 'todas' || canonCategoria(item.categoria) === filtroCategoria;
+      return passText && passCat;
+    })
+    .sort((a,b) => new Date(b.criadoEm) - new Date(a.criadoEm));
+
+  if (lista.length === 0) {
+    const vazio = document.createElement('div');
+    vazio.style.textAlign = 'center';
+    vazio.style.opacity = '.8';
+    vazio.textContent = 'Nenhum item encontrado.';
+    grid.appendChild(vazio);
+    return;
+  }
+
+  lista.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const cover = document.createElement('div');
+    cover.className = 'cover';
+    if (item.imagem) {
+      const img = document.createElement('img');
+      img.src = item.imagem;
+      img.alt = item.titulo;
+      img.style.cursor = 'zoom-in';
+      img.onclick = () => abrirLightbox(item.imagem, item.titulo);
+      cover.appendChild(img);
+    }
+    const badge = document.createElement('div');
+    badge.className = 'badge';
+    const cat = canonCategoria(item.categoria);
+    badge.textContent = cat;
+    badge.setAttribute('data-cat', cat);
+    cover.appendChild(badge);
+
+    const content = document.createElement('div');
+    content.className = 'content';
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = item.titulo;
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'subtitle';
+    const extra = item.extra ? `${item.extra} • ` : '';
+    subtitle.textContent = `${extra}${item.ano}`;
+
+    const desc = document.createElement('div');
+    desc.className = 'desc';
+    desc.textContent = item.descricao || '';
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const bEdit = document.createElement('button');
+    bEdit.className = 'btn';
+    bEdit.textContent = 'Editar';
+    bEdit.onclick = () => editarItem(item.id);
+    const bDel = document.createElement('button');
+    bDel.className = 'btn del';
+    bDel.textContent = 'Excluir';
+    bDel.onclick = () => excluirItem(item.id);
+
+    actions.appendChild(bEdit);
+    actions.appendChild(bDel);
+
+    content.appendChild(title);
+    content.appendChild(subtitle);
+    if (item.descricao) content.appendChild(desc);
+
+    card.appendChild(cover);
+    card.appendChild(content);
+    card.appendChild(actions);
+
+    grid.appendChild(card);
+  });
+}
+
+function abrirLightbox(src, alt='') {
+  const wrap = document.createElement('div');
+  wrap.className = 'lb';
+  wrap.onclick = () => document.body.removeChild(wrap);
+
+  const img = document.createElement('img');
+  img.src = src; img.alt = alt;
+
+  const close = document.createElement('button');
+  close.className = 'close';
+  close.textContent = 'Fechar (Esc)';
+  close.onclick = (e) => { e.stopPropagation(); document.body.removeChild(wrap); };
+
+  wrap.appendChild(img);
+  wrap.appendChild(close);
+  document.body.appendChild(wrap);
+
+  const onEsc = (ev) => { if (ev.key === 'Escape') { document.body.removeChild(wrap); window.removeEventListener('keydown', onEsc); } };
+  window.addEventListener('keydown', onEsc);
+}
+
+// ────────────────────────────────────────────────────────────────
 // BACKUP
+// ────────────────────────────────────────────────────────────────
 window.exportarBackup = function () {
   const data = JSON.stringify(catalogo, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
@@ -205,39 +349,26 @@ window.importarBackup = function (e) {
   reader.readAsText(file);
 };
 
-window.handleFileImport = function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  document.getElementById('nome-backup').textContent = file.name;
-  importarBackup(e);
-};
-
-// LISTAS
-function salvarListas() {
-  localStorage.setItem('listas', JSON.stringify(listas));
-}
+// ────────────────────────────────────────────────────────────────
+/* LISTAS PESSOAIS – mantidas */
+// ────────────────────────────────────────────────────────────────
+function salvarListas() { localStorage.setItem('listas', JSON.stringify(listas)); }
 
 window.addLista = function () {
   const nome = document.getElementById('nome-lista').value.trim();
   if (!nome) return alert('Dê um nome à lista');
   const inputs = document.querySelectorAll('.item-lista');
   const itens = [];
-  inputs.forEach(i => {
-    if (i.value.trim()) itens.push({ text: i.value.trim(), checked: false });
-  });
+  inputs.forEach(i => { if (i.value.trim()) itens.push({ text: i.value.trim(), checked: false }); });
   if (!itens.length) return alert('Adicione ao menos 1 item');
 
   if (idListaEditando) {
     const lista = listas.find(l => l.id === idListaEditando);
-    if (lista) {
-      lista.nome = nome;
-      lista.itens = itens;
-    }
+    if (lista) { lista.nome = nome; lista.itens = itens; }
     idListaEditando = null;
   } else {
     listas.push({ id: Date.now(), nome, itens, collapsed: false });
   }
-
   salvarListas();
   limparListaForm();
   listarListas();
@@ -338,28 +469,22 @@ function editarLista(id) {
 }
 
 function toggleCollapse(id) {
-  listas = listas.map(l => {
-    if (l.id === id) l.collapsed = !l.collapsed;
-    return l;
-  });
+  listas = listas.map(l => { if (l.id === id) l.collapsed = !l.collapsed; return l; });
   salvarListas();
   listarListas();
 }
-
 function toggleCheck(listId, idx) {
   const l = listas.find(x => x.id === listId);
   l.itens[idx].checked = !l.itens[idx].checked;
   salvarListas();
   listarListas();
 }
-
 window.excluirLista = function (id) {
   if (!confirm('Excluir esta lista?')) return;
   listas = listas.filter(l => l.id !== id);
   salvarListas();
   listarListas();
 };
-
 window.adicionarItemTemporario = function () {
   const c = document.getElementById('itens-temp');
   const inp = document.createElement('input');
@@ -367,23 +492,15 @@ window.adicionarItemTemporario = function () {
   inp.placeholder = 'Novo item';
   c.appendChild(inp);
 };
-
 function limparListaForm() {
   document.getElementById('nome-lista').value = '';
   document.getElementById('itens-temp').innerHTML = '';
   idListaEditando = null;
 }
-
-// DRAG & DROP
+// Drag & Drop
 let dragSrc = null;
-function dragStart(e) {
-  dragSrc = e.currentTarget;
-  e.dataTransfer.effectAllowed = 'move';
-}
-function dragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
+function dragStart(e) { dragSrc = e.currentTarget; e.dataTransfer.effectAllowed = 'move'; }
+function dragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 function dropItem(e) {
   e.preventDefault();
   const tgt = e.currentTarget;

@@ -6,7 +6,7 @@
   <title>Catálogo Pessoal</title>
   <link rel="stylesheet" href="style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
-  <script src="app.js"></script>
+  <script defer src="app.js"></script>
 </head>
 <body>
   <!-- Botões de troca de modo -->
@@ -24,26 +24,33 @@
         <h2>Adicionar Item</h2>
 
         <input type="text"   id="titulo"    placeholder="Título" oninput="this.value = this.value.toUpperCase()"/>
-        <input type="text"   id="categoria" placeholder="Categoria (CD, Livro, Jogo...)" oninput="atualizarCampoExtra()"/>
+
+        <!-- Select fixo de categoria -->
+        <select id="categoria">
+          <option value="CD">CD</option>
+          <option value="LIVRO">LIVRO</option>
+          <option value="VINIL">VINIL</option>
+        </select>
+
         <input type="number" id="ano"       placeholder="Ano"/>
         <input type="text"   id="extra"     placeholder="Informação extra (ex: Autor ou Banda)"/>
-        <textarea           id="descricao" placeholder="Descrição"></textarea>
+        <textarea            id="descricao" placeholder="Descrição"></textarea>
 
         <!-- Botão estilizado de imagem -->
         <div class="importar-wrapper">
           <button type="button" onclick="document.getElementById('imagem').click()">📷 Enviar Imagem</button>
           <span id="nome-imagem">Nenhuma imagem escolhida</span>
-          <input type="file" id="imagem" accept="image/*" capture="environment" onchange="atualizarNomeImagem()" style="display: none;" />
+          <input type="file" id="imagem" accept="image/*" capture="environment" style="display:none"/>
         </div>
 
-        <button id="btnSalvar" onclick="addItem()">Salvar Item</button>
+        <button id="btnSalvar">Salvar Item</button>
         <button onclick="exportarBackup()">📤 Exportar Backup</button>
 
         <!-- Botão estilizado de backup -->
         <div class="importar-wrapper">
           <button type="button" onclick="document.getElementById('input-backup').click()">📥 Importar Backup</button>
           <span id="nome-backup">Nenhum arquivo escolhido</span>
-          <input type="file" id="input-backup" onchange="handleFileImport(event)" style="display: none;" />
+          <input type="file" id="input-backup" style="display:none"/>
         </div>
       </aside>
 
@@ -54,9 +61,14 @@
                  placeholder="Buscar por título, autor, banda..."
                  oninput="buscarItens()"/>
         </div>
+
+        <!-- menu de categorias (chips fixos com contagem) -->
         <div id="menu-categorias" class="menu"></div>
+
         <h2>Itens cadastrados</h2>
-        <ul id="itens-list"></ul>
+
+        <!-- GALERIA EM GRID -->
+        <div id="itens-grid" class="grid-catalog"></div>
       </main>
     </div>
 
@@ -77,21 +89,5 @@
     </div>
 
   </div>
-
-  <!-- Script para mostrar o nome do arquivo -->
-  <script>
-    function atualizarNomeImagem() {
-      const input = document.getElementById('imagem');
-      const span = document.getElementById('nome-imagem');
-      span.textContent = input.files.length ? input.files[0].name : 'Nenhuma imagem escolhida';
-    }
-
-    function handleFileImport(e) {
-      const input = e.target;
-      const span = document.getElementById('nome-backup');
-      span.textContent = input.files.length ? input.files[0].name : 'Nenhum arquivo escolhido';
-      importarBackup(e); // chama função original
-    }
-  </script>
 </body>
 </html>
