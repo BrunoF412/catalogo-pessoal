@@ -172,7 +172,7 @@ window.buscarItens = function () {
 };
 
 // ────────────────────────────────────────────────────────────────
-// CATALOGO – FILTROS, LISTAGEM EM GRID E LIGHTBOX
+/* CATALOGO – FILTROS, LISTAGEM EM GRID, LIGHTBOX e EXPANDIR CARD */
 // ────────────────────────────────────────────────────────────────
 function construirMenuCategorias() {
   const el = document.getElementById('menu-categorias');
@@ -236,6 +236,12 @@ function listarCatalogo(filtroTexto = '') {
     const card = document.createElement('div');
     card.className = 'card';
 
+    // Toggle expandido ao clicar no card
+    card.addEventListener('click', () => {
+      card.classList.toggle('expanded');
+    });
+
+    // Capa / imagem
     const cover = document.createElement('div');
     cover.className = 'cover';
     if (item.imagem) {
@@ -243,7 +249,10 @@ function listarCatalogo(filtroTexto = '') {
       img.src = item.imagem;
       img.alt = item.titulo;
       img.style.cursor = 'zoom-in';
-      img.onclick = () => abrirLightbox(item.imagem, item.titulo);
+      img.onclick = (e) => {
+        e.stopPropagation();        // não alterna o expandido ao abrir lightbox
+        abrirLightbox(item.imagem, item.titulo);
+      };
       cover.appendChild(img);
     }
     const badge = document.createElement('div');
@@ -253,6 +262,7 @@ function listarCatalogo(filtroTexto = '') {
     badge.setAttribute('data-cat', cat);
     cover.appendChild(badge);
 
+    // Conteúdo
     const content = document.createElement('div');
     content.className = 'content';
 
@@ -269,16 +279,19 @@ function listarCatalogo(filtroTexto = '') {
     desc.className = 'desc';
     desc.textContent = item.descricao || '';
 
+    // Ações (escondidas por padrão; aparecem quando .expanded)
     const actions = document.createElement('div');
     actions.className = 'actions';
+
     const bEdit = document.createElement('button');
     bEdit.className = 'btn';
     bEdit.textContent = 'Editar';
-    bEdit.onclick = () => editarItem(item.id);
+    bEdit.onclick = (e) => { e.stopPropagation(); editarItem(item.id); };
+
     const bDel = document.createElement('button');
     bDel.className = 'btn del';
     bDel.textContent = 'Excluir';
-    bDel.onclick = () => excluirItem(item.id);
+    bDel.onclick = (e) => { e.stopPropagation(); excluirItem(item.id); };
 
     actions.appendChild(bEdit);
     actions.appendChild(bDel);
