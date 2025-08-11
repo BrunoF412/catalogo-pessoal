@@ -36,17 +36,24 @@
         <input type="text"   id="extra"     placeholder="Informação extra (ex: Autor ou Banda)"/>
         <textarea            id="descricao" placeholder="Descrição"></textarea>
 
-        <!-- Botão estilizado de imagem -->
+        <!-- Upload com 2 ações: Galeria e Câmera -->
         <div class="importar-wrapper">
-          <button type="button" onclick="document.getElementById('imagem').click()">📷 Enviar Imagem</button>
+          <div class="file-actions">
+            <button type="button" onclick="document.getElementById('img-galeria').click()">🖼️ Escolher da galeria</button>
+            <button type="button" onclick="document.getElementById('img-camera').click()">📷 Tirar foto</button>
+          </div>
           <span id="nome-imagem">Nenhuma imagem escolhida</span>
-          <input type="file" id="imagem" accept="image/*" capture="environment" style="display:none"/>
+
+          <!-- Galeria -->
+          <input type="file" id="img-galeria" accept="image/*" style="display:none"/>
+          <!-- Câmera -->
+          <input type="file" id="img-camera" accept="image/*" capture="environment" style="display:none"/>
         </div>
 
         <button id="btnSalvar">Salvar Item</button>
         <button onclick="exportarBackup()">📤 Exportar Backup</button>
 
-        <!-- Botão estilizado de backup -->
+        <!-- Importar backup -->
         <div class="importar-wrapper">
           <button type="button" onclick="document.getElementById('input-backup').click()">📥 Importar Backup</button>
           <span id="nome-backup">Nenhum arquivo escolhido</span>

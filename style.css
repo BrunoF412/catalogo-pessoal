@@ -96,6 +96,8 @@ body {
 .importar-wrapper span {
   font-size: 14px; color: #cbd5e1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
+.file-actions { display:flex; gap:8px; width:100%; }
+.file-actions button { flex:1; }
 
 /* ÁREA DE BUSCA / CONTEÚDO */
 .catalog-section { flex: 1; width: 100%; margin: 0 auto; }
@@ -121,25 +123,15 @@ body {
 .menu button.active { background: #3b82f6; }
 
 /* ======= GALERIA EM GRID (MOBILE-FIRST) ======= */
-/* Mobile: 2 colunas, cards mais compactos */
 .grid-catalog {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   width: 100%;
 }
-
-/* Telas médias: 3 colunas */
-@media (min-width: 480px) {
-  .grid-catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-/* Desktop: auto-fit com cards maiores */
+@media (min-width: 480px) { .grid-catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 768px) {
-  .grid-catalog {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-  }
+  .grid-catalog { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 }
 
 /* Card do item */
@@ -164,7 +156,6 @@ body {
   font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 999px;
   background:#0ea5e9; color:#06121f; /* default */
 }
-/* variações por categoria */
 .badge[data-cat="CD"]    { background:#60a5fa; color:#0b1220; }
 .badge[data-cat="LIVRO"] { background:#34d399; color:#062016; }
 .badge[data-cat="VINIL"] { background:#f472b6; color:#200614; }
@@ -178,9 +169,9 @@ body {
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
-/* Ações do card — escondidas por padrão */
+/* Ações do card — escondidas por padrão; visíveis quando expandido */
 .card .actions { display: none; gap: 8px; padding: 10px; padding-top: 0; }
-.card.expanded .actions { display: flex; } /* aparece só quando expandido */
+.card.expanded .actions { display: flex; }
 
 /* Botões */
 .card .btn { flex: 1; background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 10px; padding: 8px; cursor: pointer; }
@@ -188,7 +179,7 @@ body {
 .card .btn.del { border-color: #7f1d1d; color: #fecaca; }
 .card .btn.del:hover { background: #451a1a; }
 
-/* Lightbox simples */
+/* Lightbox */
 .lb { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: grid; place-items: center; z-index: 9999; }
 .lb img { max-width: 90vw; max-height: 85vh; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
 .lb .close {

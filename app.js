@@ -25,16 +25,35 @@ function canonCategoria(v) {
   return 'LIVRO';
 }
 
+// Helper: obter o arquivo selecionado (galeria OU câmera)
+function getSelectedImageFile() {
+  const gal = document.getElementById('img-galeria');
+  const cam = document.getElementById('img-camera');
+  return (gal && gal.files[0]) || (cam && cam.files[0]) || null;
+}
+
+function getBase64FromFile(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
 // ────────────────────────────────────────────────────────────────
 window.onload = function () {
-  // bind dos inputs (nome do arquivo escolhido)
-  const inputImagem = document.getElementById('imagem');
-  const spanImg = document.getElementById('nome-imagem');
-  if (inputImagem) {
-    inputImagem.addEventListener('change', () => {
-      spanImg.textContent = inputImagem.files.length ? inputImagem.files[0].name : 'Nenhuma imagem escolhida';
-    });
-  }
+  // nome do arquivo (galeria e câmera)
+  const gal = document.getElementById('img-galeria');
+  const cam = document.getElementById('img-camera');
+  const spanNome = document.getElementById('nome-imagem');
+  if (gal) gal.addEventListener('change', () => {
+    spanNome.textContent = gal.files.length ? gal.files[0].name : 'Nenhuma imagem escolhida';
+  });
+  if (cam) cam.addEventListener('change', () => {
+    spanNome.textContent = cam.files.length ? cam.files[0].name : 'Nenhuma imagem escolhida';
+  });
+
+  // nome do arquivo de backup
   const inputBackup = document.getElementById('input-backup');
   const spanBackup = document.getElementById('nome-backup');
   if (inputBackup) {
@@ -43,7 +62,8 @@ window.onload = function () {
       importarBackup(e);
     });
   }
-  // botão salvar (pode mudar para atualizar)
+
+  // botão salvar
   const btn = document.getElementById('btnSalvar');
   if (btn) btn.onclick = addItem;
 
@@ -74,21 +94,18 @@ function salvarCatalogo() {
   construirMenuCategorias();
 }
 
-function getBase64FromFile(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
-}
-
 function limparForm() {
-  ['titulo', 'categoria', 'ano', 'extra', 'descricao', 'imagem'].forEach(id => {
+  ['titulo','categoria','ano','extra','descricao'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = id === 'categoria' ? 'LIVRO' : '';
   });
+  const gal = document.getElementById('img-galeria');
+  const cam = document.getElementById('img-camera');
+  if (gal) gal.value = '';
+  if (cam) cam.value = '';
   const span = document.getElementById('nome-imagem');
   if (span) span.textContent = 'Nenhuma imagem escolhida';
+
   const btn = document.getElementById('btnSalvar');
   btn.textContent = 'Salvar Item';
   btn.onclick = addItem;
@@ -103,11 +120,10 @@ window.addItem = function () {
   const ano = document.getElementById('ano').value.trim();
   const extra = document.getElementById('extra').value.trim();
   const descricao = document.getElementById('descricao').value.trim();
-  const inputImg = document.getElementById('imagem');
 
   if (!titulo || !categoria || !ano) return alert('Preencha Título, Categoria e Ano.');
 
-  const file = inputImg.files[0];
+  const file = getSelectedImageFile();
   const imagemPromise = file ? getBase64FromFile(file) : Promise.resolve('');
 
   imagemPromise.then(base64 => {
@@ -144,12 +160,11 @@ function atualizarItem(id) {
   const ano = document.getElementById('ano').value.trim();
   const extra = document.getElementById('extra').value.trim();
   const descricao = document.getElementById('descricao').value.trim();
-  const inputImg = document.getElementById('imagem');
 
   const item = catalogo.find(i => i.id === id);
   if (!item) return;
 
-  const file = inputImg.files[0];
+  const file = getSelectedImageFile();
   const imgPromise = file ? getBase64FromFile(file) : Promise.resolve(item.imagem);
 
   imgPromise.then(base64 => {
@@ -172,7 +187,7 @@ window.buscarItens = function () {
 };
 
 // ────────────────────────────────────────────────────────────────
-/* CATALOGO – FILTROS, LISTAGEM EM GRID, LIGHTBOX e EXPANDIR CARD */
+// CATALOGO – FILTROS, GRID, LIGHTBOX e EXPANDIR CARD
 // ────────────────────────────────────────────────────────────────
 function construirMenuCategorias() {
   const el = document.getElementById('menu-categorias');
@@ -241,7 +256,7 @@ function listarCatalogo(filtroTexto = '') {
       card.classList.toggle('expanded');
     });
 
-    // Capa / imagem
+    // Capa
     const cover = document.createElement('div');
     cover.className = 'cover';
     if (item.imagem) {
@@ -250,7 +265,7 @@ function listarCatalogo(filtroTexto = '') {
       img.alt = item.titulo;
       img.style.cursor = 'zoom-in';
       img.onclick = (e) => {
-        e.stopPropagation();        // não alterna o expandido ao abrir lightbox
+        e.stopPropagation(); // não alterna expandido
         abrirLightbox(item.imagem, item.titulo);
       };
       cover.appendChild(img);
@@ -279,7 +294,7 @@ function listarCatalogo(filtroTexto = '') {
     desc.className = 'desc';
     desc.textContent = item.descricao || '';
 
-    // Ações (escondidas por padrão; aparecem quando .expanded)
+    // Ações (só visíveis quando expanded)
     const actions = document.createElement('div');
     actions.className = 'actions';
 
@@ -363,7 +378,7 @@ window.importarBackup = function (e) {
 };
 
 // ────────────────────────────────────────────────────────────────
-/* LISTAS PESSOAIS – mantidas */
+// LISTAS PESSOAIS (mantidas)
 // ────────────────────────────────────────────────────────────────
 function salvarListas() { localStorage.setItem('listas', JSON.stringify(listas)); }
 
