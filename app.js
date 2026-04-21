@@ -1,4 +1,32 @@
 // ────────────────────────────────────────────────────────────────
+// CLOUDINARY
+// ────────────────────────────────────────────────────────────────
+const CLOUDINARY_CLOUD_NAME = 'doyi4wowj';
+const CLOUDINARY_UPLOAD_PRESET = 'catalogo_unsigned';
+
+async function uploadImageToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.error?.message || 'Erro ao enviar imagem para o Cloudinary.');
+  }
+
+  return data.secure_url;
+}
+
+// ────────────────────────────────────────────────────────────────
 // ESTADO
 // ────────────────────────────────────────────────────────────────
 let modoAtual = 'catalogo';
@@ -20,8 +48,8 @@ listas = listas.map(l => ({
 // Normalização de categoria
 function canonCategoria(v) {
   const t = (v || '').toString().trim().toUpperCase();
-  if (['CD','LIVRO','VINIL'].includes(t)) return t;
-  if (['LP','RECORD'].includes(t)) return 'VINIL';
+  if (['CD', 'LIVRO', 'VINIL'].includes(t)) return t;
+  if (['LP', 'RECORD'].includes(t)) return 'VINIL';
   return 'LIVRO';
 }
 
@@ -30,14 +58,6 @@ function getSelectedImageFile() {
   const gal = document.getElementById('img-galeria');
   const cam = document.getElementById('img-camera');
   return (gal && gal.files[0]) || (cam && cam.files[0]) || null;
-}
-
-function getBase64FromFile(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -95,7 +115,7 @@ function salvarCatalogo() {
 }
 
 function limparForm() {
-  ['titulo','categoria','ano','extra','descricao'].forEach(id => {
+  ['titulo', 'categoria', 'ano', 'extra', 'descricao'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = id === 'categoria' ? 'LIVRO' : '';
   });
@@ -114,7 +134,7 @@ function limparForm() {
 // ────────────────────────────────────────────────────────────────
 // CATALOGO – CRUD
 // ────────────────────────────────────────────────────────────────
-window.addItem = function () {
+window.addItem = async function () {
   const titulo = document.getElementById('titulo').value.trim().toUpperCase();
   const categoria = canonCategoria(document.getElementById('categoria').value);
   const ano = document.getElementById('ano').value.trim();
@@ -123,20 +143,30 @@ window.addItem = function () {
 
   if (!titulo || !categoria || !ano) return alert('Preencha Título, Categoria e Ano.');
 
-  const file = getSelectedImageFile();
-  const imagemPromise = file ? getBase64FromFile(file) : Promise.resolve('');
+  const btn = document.getElementById('btnSalvar');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Enviando imagem...';
 
-  imagemPromise.then(base64 => {
+  try {
+    const file = getSelectedImageFile();
+    const imagem = file ? await uploadImageToCloudinary(file) : '';
+
     catalogo.push({
       id: Date.now(),
       titulo, categoria, ano, extra, descricao,
-      imagem: base64,
+      imagem,
       criadoEm: new Date().toISOString()
     });
     salvarCatalogo();
     limparForm();
     listarCatalogo();
-  });
+  } catch (err) {
+    alert(err.message || 'Erro ao salvar item.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Item';
+  }
 };
 
 window.editarItem = function (id) {
@@ -150,11 +180,11 @@ window.editarItem = function (id) {
 
   const btn = document.getElementById('btnSalvar');
   btn.textContent = 'Atualizar Item';
-  btn.onclick = function () { atualizarItem(id) };
+  btn.onclick = function () { atualizarItem(id); };
   document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
 };
 
-function atualizarItem(id) {
+async function atualizarItem(id) {
   const titulo = document.getElementById('titulo').value.trim().toUpperCase();
   const categoria = canonCategoria(document.getElementById('categoria').value);
   const ano = document.getElementById('ano').value.trim();
@@ -164,15 +194,24 @@ function atualizarItem(id) {
   const item = catalogo.find(i => i.id === id);
   if (!item) return;
 
-  const file = getSelectedImageFile();
-  const imgPromise = file ? getBase64FromFile(file) : Promise.resolve(item.imagem);
+  const btn = document.getElementById('btnSalvar');
+  btn.disabled = true;
+  btn.textContent = 'Atualizando...';
 
-  imgPromise.then(base64 => {
-    Object.assign(item, { titulo, categoria, ano, extra, descricao, imagem: base64 });
+  try {
+    const file = getSelectedImageFile();
+    const imagem = file ? await uploadImageToCloudinary(file) : item.imagem;
+
+    Object.assign(item, { titulo, categoria, ano, extra, descricao, imagem });
     salvarCatalogo();
     limparForm();
     listarCatalogo();
-  });
+  } catch (err) {
+    alert(err.message || 'Erro ao atualizar item.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Item';
+  }
 }
 
 window.excluirItem = function (id) {
@@ -203,7 +242,7 @@ function construirMenuCategorias() {
 
   const chips = [
     { id: 'todas', label: `Todas (${catalogo.length})` },
-    { id: 'CD',    label: `CD (${counts.CD})` },
+    { id: 'CD', label: `CD (${counts.CD})` },
     { id: 'LIVRO', label: `LIVRO (${counts.LIVRO})` },
     { id: 'VINIL', label: `VINIL (${counts.VINIL})` },
   ];
@@ -229,14 +268,14 @@ function listarCatalogo(filtroTexto = '') {
       const passText =
         item.titulo.toLowerCase().includes(ftxt) ||
         canonCategoria(item.categoria).toLowerCase().includes(ftxt) ||
-        (item.extra||'').toLowerCase().includes(ftxt) ||
-        (item.ano||'').toString().includes(ftxt) ||
-        (item.descricao||'').toLowerCase().includes(ftxt);
+        (item.extra || '').toLowerCase().includes(ftxt) ||
+        (item.ano || '').toString().includes(ftxt) ||
+        (item.descricao || '').toLowerCase().includes(ftxt);
 
       const passCat = filtroCategoria === 'todas' || canonCategoria(item.categoria) === filtroCategoria;
       return passText && passCat;
     })
-    .sort((a,b) => new Date(b.criadoEm) - new Date(a.criadoEm));
+    .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm));
 
   if (lista.length === 0) {
     const vazio = document.createElement('div');
@@ -323,13 +362,14 @@ function listarCatalogo(filtroTexto = '') {
   });
 }
 
-function abrirLightbox(src, alt='') {
+function abrirLightbox(src, alt = '') {
   const wrap = document.createElement('div');
   wrap.className = 'lb';
   wrap.onclick = () => document.body.removeChild(wrap);
 
   const img = document.createElement('img');
-  img.src = src; img.alt = alt;
+  img.src = src;
+  img.alt = alt;
 
   const close = document.createElement('button');
   close.className = 'close';
@@ -340,7 +380,12 @@ function abrirLightbox(src, alt='') {
   wrap.appendChild(close);
   document.body.appendChild(wrap);
 
-  const onEsc = (ev) => { if (ev.key === 'Escape') { document.body.removeChild(wrap); window.removeEventListener('keydown', onEsc); } };
+  const onEsc = (ev) => {
+    if (ev.key === 'Escape') {
+      document.body.removeChild(wrap);
+      window.removeEventListener('keydown', onEsc);
+    }
+  };
   window.addEventListener('keydown', onEsc);
 }
 
@@ -392,7 +437,10 @@ window.addLista = function () {
 
   if (idListaEditando) {
     const lista = listas.find(l => l.id === idListaEditando);
-    if (lista) { lista.nome = nome; lista.itens = itens; }
+    if (lista) {
+      lista.nome = nome;
+      lista.itens = itens;
+    }
     idListaEditando = null;
   } else {
     listas.push({ id: Date.now(), nome, itens, collapsed: false });
@@ -407,6 +455,7 @@ window.addLista = function () {
 
 function listarListas() {
   const ul = document.getElementById('listas-salvas');
+  if (!ul) return;
   ul.innerHTML = '';
   listas.forEach(lista => {
     const li = document.createElement('li');
@@ -497,7 +546,10 @@ function editarLista(id) {
 }
 
 function toggleCollapse(id) {
-  listas = listas.map(l => { if (l.id === id) l.collapsed = !l.collapsed; return l; });
+  listas = listas.map(l => {
+    if (l.id === id) l.collapsed = !l.collapsed;
+    return l;
+  });
   salvarListas();
   listarListas();
 }
