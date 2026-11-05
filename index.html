@@ -7,61 +7,65 @@
   <link rel="stylesheet" href="style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
   <script defer src="app.js"></script>
+  <script type="module" src="firebase.js"></script>
 </head>
 <body>
-  <!-- Botões de troca de modo -->
-  <div class="modo-selector">
-    <button id="btnCatalogo" onclick="setModo('catalogo')">Catálogo Pessoal</button>
-    <button id="btnLista"   onclick="setModo('lista')">Listas Pessoais</button>
-  </div>
+  <header class="app-header">
+    <div class="app-brand">
+      <span class="app-eyebrow">MINHA COLEÇÃO</span>
+      <h1>Catálogo Pessoal</h1>
+      <p>Organize suas coleções e listas em um só lugar.</p>
+    </div>
+    <div class="header-actions">
+      <nav id="app-navigation" class="modo-selector" aria-label="Seções principais" hidden>
+        <button id="btnCatalogo" onclick="setModo('catalogo')">Catálogo</button>
+        <button id="btnPerfumes" onclick="setModo('perfumes')">Perfumes</button>
+        <button id="btnLista" onclick="setModo('lista')">Listas</button>
+      </nav>
+      <div id="user-menu" class="user-menu" hidden>
+        <span id="user-email"></span>
+        <button id="btn-logout" type="button">Sair</button>
+      </div>
+    </div>
+  </header>
 
-  <div class="container">
+  <main id="auth-screen" class="auth-screen">
+    <section class="auth-card">
+      <span class="app-eyebrow">ACESSO SEGURO</span>
+      <h2 id="auth-title">Entrar na sua coleção</h2>
+      <p id="auth-subtitle">Use seu e-mail e senha para acessar seus dados.</p>
+      <form id="auth-form">
+        <label for="auth-email">E-mail</label>
+        <input id="auth-email" type="email" autocomplete="email" required placeholder="voce@email.com"/>
+        <label for="auth-password">Senha</label>
+        <input id="auth-password" type="password" autocomplete="current-password" required minlength="6" placeholder="Mínimo de 6 caracteres"/>
+        <p id="auth-message" class="auth-message" role="alert"></p>
+        <button id="auth-submit" class="btn-primary" type="submit">Entrar</button>
+      </form>
+      <button id="auth-toggle" class="auth-link" type="button">Ainda não tenho uma conta</button>
+      <button id="auth-reset" class="auth-link" type="button">Esqueci minha senha</button>
+    </section>
+  </main>
+
+  <div id="app-container" class="container" hidden>
 
     <!-- ─── MODO CATÁLOGO ─────────────────────────────────────── -->
-    <div id="modo-catalogo">
-      <aside class="form-section">
-        <h1>Catálogo Pessoal</h1>
-        <h2>Adicionar Item</h2>
-
-        <input type="text"   id="titulo"    placeholder="Título" oninput="this.value = this.value.toUpperCase()"/>
-
-        <!-- Select fixo de categoria -->
-        <select id="categoria">
-          <option value="CD">CD</option>
-          <option value="LIVRO">LIVRO</option>
-          <option value="VINIL">VINIL</option>
-        </select>
-
-        <input type="number" id="ano"       placeholder="Ano"/>
-        <input type="text"   id="extra"     placeholder="Informação extra (ex: Autor ou Banda)"/>
-        <textarea            id="descricao" placeholder="Descrição"></textarea>
-
-        <!-- Upload com 2 ações: Galeria e Câmera -->
-        <div class="importar-wrapper">
-          <div class="file-actions">
-            <button type="button" onclick="document.getElementById('img-galeria').click()">🖼️ Escolher da galeria</button>
-            <button type="button" onclick="document.getElementById('img-camera').click()">📷 Tirar foto</button>
+    <div id="modo-catalogo" class="modo-painel">
+      <main class="catalog-section catalogo-workspace">
+        <div class="section-heading">
+          <div>
+            <span class="section-eyebrow">ACERVO</span>
+            <h2>Meu catálogo</h2>
+            <p>Livros, CDs e vinis reunidos em um só lugar.</p>
           </div>
-          <span id="nome-imagem">Nenhuma imagem escolhida</span>
-
-          <!-- Galeria -->
-          <input type="file" id="img-galeria" accept="image/*" style="display:none"/>
-          <!-- Câmera -->
-          <input type="file" id="img-camera" accept="image/*" capture="environment" style="display:none"/>
+          <div class="heading-actions">
+            <button class="btn-secondary" type="button" onclick="exportarBackup()">Exportar backup</button>
+            <button class="btn-secondary" type="button" onclick="document.getElementById('input-backup').click()">Importar</button>
+            <button class="btn-primary" type="button" onclick="abrirFormularioCatalogo()">+ Novo item</button>
+            <input type="file" id="input-backup" accept="application/json" style="display:none"/>
+            <span id="nome-backup" class="sr-only">Nenhum arquivo escolhido</span>
+          </div>
         </div>
-
-        <button id="btnSalvar">Salvar Item</button>
-        <button onclick="exportarBackup()">📤 Exportar Backup</button>
-
-        <!-- Importar backup -->
-        <div class="importar-wrapper">
-          <button type="button" onclick="document.getElementById('input-backup').click()">📥 Importar Backup</button>
-          <span id="nome-backup">Nenhum arquivo escolhido</span>
-          <input type="file" id="input-backup" style="display:none"/>
-        </div>
-      </aside>
-
-      <main class="catalog-section">
         <div class="busca-container">
           <input type="text"
                  id="busca"
@@ -69,18 +73,177 @@
                  oninput="buscarItens()"/>
         </div>
 
-        <!-- menu de categorias (chips fixos com contagem) -->
         <div id="menu-categorias" class="menu"></div>
-
-        <h2>Itens cadastrados</h2>
-
-        <!-- GALERIA EM GRID -->
         <div id="itens-grid" class="grid-catalog"></div>
       </main>
+
+      <div id="catalogo-drawer-backdrop" class="drawer-backdrop" onclick="fecharFormularioCatalogo()"></div>
+      <aside id="catalogo-drawer" class="perfume-drawer" aria-hidden="true">
+        <div class="drawer-header">
+          <div><span class="section-eyebrow">CATÁLOGO</span><h2 id="catalogo-form-titulo">Novo item</h2></div>
+          <button class="icon-button" type="button" onclick="fecharFormularioCatalogo()" aria-label="Fechar formulário">×</button>
+        </div>
+        <div class="drawer-body form-section">
+          <label for="titulo">Título *</label>
+          <input type="text" id="titulo" placeholder="Título" oninput="this.value = this.value.toUpperCase()"/>
+          <label for="categoria">Categoria</label>
+          <select id="categoria"><option value="CD">CD</option><option value="LIVRO">Livro</option><option value="VINIL">Vinil</option></select>
+          <label for="ano">Ano *</label>
+          <input type="number" id="ano" placeholder="Ano"/>
+          <label for="extra">Autor ou artista</label>
+          <input type="text" id="extra" placeholder="Autor, banda ou artista"/>
+          <label for="descricao">Descrição</label>
+          <textarea id="descricao" placeholder="Descrição e observações"></textarea>
+          <div class="importar-wrapper">
+            <div class="file-actions">
+              <button type="button" onclick="document.getElementById('img-galeria').click()">🖼️ Galeria</button>
+              <button type="button" onclick="document.getElementById('img-camera').click()">📷 Câmera</button>
+            </div>
+            <span id="nome-imagem">Nenhuma imagem escolhida</span>
+            <input type="file" id="img-galeria" accept="image/*" style="display:none"/>
+            <input type="file" id="img-camera" accept="image/*" capture="environment" style="display:none"/>
+          </div>
+        </div>
+        <div class="drawer-footer">
+          <button class="btn-secondary" type="button" onclick="fecharFormularioCatalogo()">Cancelar</button>
+          <button class="btn-primary" id="btnSalvar" type="button">Salvar item</button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ─── MODO PERFUMES ─────────────────────────────────────── -->
+    <div id="modo-perfumes" class="modo-painel" style="display: none;">
+      <main class="catalog-section perfume-workspace">
+        <div class="section-heading">
+          <div>
+            <span class="section-eyebrow">PERFUMARIA</span>
+            <h2>Minha coleção</h2>
+            <p>Consulte e organize todos os seus perfumes.</p>
+          </div>
+          <button class="btn-primary" type="button" onclick="abrirFormularioPerfume()">+ Novo perfume</button>
+        </div>
+        <div class="busca-container filtros-perfumes">
+          <input type="text" id="busca-perfumes" placeholder="Buscar por nome, marca, família ou notas..."/>
+          <select id="filtro-concentracao">
+            <option value="todas">Todas as concentrações</option>
+            <option value="EDC">EDC</option>
+            <option value="EDT">EDT</option>
+            <option value="EDP">EDP</option>
+            <option value="PARFUM">Parfum</option>
+            <option value="EXTRAIT">Extrait</option>
+            <option value="OUTRA">Outra</option>
+          </select>
+        </div>
+        <div id="perfumes-grid" class="grid-catalog"></div>
+      </main>
+
+      <div id="perfume-drawer-backdrop" class="drawer-backdrop" onclick="fecharFormularioPerfume()"></div>
+      <aside id="perfume-drawer" class="perfume-drawer" aria-hidden="true">
+        <div class="drawer-header">
+          <div>
+            <span class="section-eyebrow">PERFUME</span>
+            <h2 id="perfume-form-titulo">Novo perfume</h2>
+          </div>
+          <button class="icon-button" type="button" onclick="fecharFormularioPerfume()" aria-label="Fechar formulário">×</button>
+        </div>
+        <div class="drawer-body form-section">
+          <label for="perfume-nome">Nome *</label>
+          <input type="text" id="perfume-nome" placeholder="Ex.: Sauvage"/>
+          <label for="perfume-marca">Marca *</label>
+          <input type="text" id="perfume-marca" placeholder="Ex.: Dior"/>
+          <div class="form-row">
+            <div>
+              <label for="perfume-concentracao">Concentração</label>
+              <select id="perfume-concentracao">
+                <option value="EDC">EDC</option><option value="EDT">EDT</option>
+                <option value="EDP" selected>EDP</option><option value="PARFUM">Parfum</option>
+                <option value="EXTRAIT">Extrait</option><option value="OUTRA">Outra</option>
+              </select>
+            </div>
+            <div><label for="perfume-volume">Volume (ml)</label><input type="number" id="perfume-volume" min="1" placeholder="100"/></div>
+          </div>
+          <div class="form-row">
+            <div><label for="perfume-ano">Ano</label><input type="number" id="perfume-ano" min="1800" placeholder="2024"/></div>
+            <div><label for="perfume-avaliacao">Avaliação</label><input type="number" id="perfume-avaliacao" min="0" max="10" step="0.5" placeholder="0 a 10"/></div>
+          </div>
+          <label for="perfume-familia">Família olfativa</label>
+          <input type="text" id="perfume-familia" placeholder="Ex.: Amadeirado aromático"/>
+
+          <fieldset class="notas-fieldset acordes-fieldset">
+            <legend>Acordes principais</legend>
+            <p>Adicione os acordes e defina a intensidade de cada um.</p>
+            <div class="acorde-input-grid">
+              <input id="acorde-nome-input" placeholder="Ex.: Aromático"/>
+              <input id="acorde-intensidade-input" type="number" min="1" max="100" value="80" aria-label="Intensidade do acorde"/>
+              <input id="acorde-cor-input" type="color" value="#2f9e8f" aria-label="Cor do acorde"/>
+              <button type="button" onclick="adicionarAcorde()">Adicionar</button>
+            </div>
+            <div id="acordes-form-lista" class="acordes-form-lista"></div>
+          </fieldset>
+
+          <fieldset class="notas-fieldset">
+            <legend>Pirâmide olfativa</legend>
+            <p>Digite uma nota e pressione Enter ou Adicionar.</p>
+            <div class="nota-editor" data-tipo="saida">
+              <label for="nota-saida-input">Notas de saída</label>
+              <div class="nota-input-row"><input id="nota-saida-input" placeholder="Ex.: Bergamota"/><button type="button" onclick="adicionarNota('saida')">Adicionar</button></div>
+              <div id="notas-saida-chips" class="chips"></div>
+            </div>
+            <div class="nota-editor" data-tipo="coracao">
+              <label for="nota-coracao-input">Notas de coração</label>
+              <div class="nota-input-row"><input id="nota-coracao-input" placeholder="Ex.: Lavanda"/><button type="button" onclick="adicionarNota('coracao')">Adicionar</button></div>
+              <div id="notas-coracao-chips" class="chips"></div>
+            </div>
+            <div class="nota-editor" data-tipo="fundo">
+              <label for="nota-fundo-input">Notas de fundo</label>
+              <div class="nota-input-row"><input id="nota-fundo-input" placeholder="Ex.: Cedro"/><button type="button" onclick="adicionarNota('fundo')">Adicionar</button></div>
+              <div id="notas-fundo-chips" class="chips"></div>
+            </div>
+          </fieldset>
+
+          <fieldset class="notas-fieldset">
+            <legend>Desempenho e ocasião</legend>
+            <div class="form-row">
+              <div><label for="perfume-longevidade">Longevidade (horas)</label><input id="perfume-longevidade" type="number" min="0" max="48" step="0.5" placeholder="Ex.: 8"/></div>
+              <div>
+                <label for="perfume-projecao">Projeção</label>
+                <select id="perfume-projecao">
+                  <option value="">Não informado</option><option value="Suave">Suave</option>
+                  <option value="Moderada">Moderada</option><option value="Forte">Forte</option><option value="Muito forte">Muito forte</option>
+                </select>
+              </div>
+            </div>
+            <span class="field-label">Período</span>
+            <div class="toggle-options">
+              <label><input id="perfume-dia" type="checkbox"/> ☀️ Dia</label>
+              <label><input id="perfume-noite" type="checkbox"/> 🌙 Noite</label>
+            </div>
+            <span class="field-label">Estações</span>
+            <div class="toggle-options seasons-options">
+              <label><input id="estacao-verao" type="checkbox"/> ☀️ Verão</label>
+              <label><input id="estacao-outono" type="checkbox"/> 🍂 Outono</label>
+              <label><input id="estacao-inverno" type="checkbox"/> ❄️ Inverno</label>
+              <label><input id="estacao-primavera" type="checkbox"/> 🌸 Primavera</label>
+            </div>
+          </fieldset>
+
+          <label for="perfume-descricao">Impressões pessoais</label>
+          <textarea id="perfume-descricao" placeholder="Descreva suas impressões..."></textarea>
+          <div class="importar-wrapper">
+            <button type="button" onclick="document.getElementById('perfume-imagem').click()">🖼️ Escolher imagem</button>
+            <span id="nome-imagem-perfume">Nenhuma imagem escolhida</span>
+            <input type="file" id="perfume-imagem" accept="image/*" style="display:none"/>
+          </div>
+        </div>
+        <div class="drawer-footer">
+          <button class="btn-secondary" type="button" onclick="fecharFormularioPerfume()">Cancelar</button>
+          <button class="btn-primary" id="btnSalvarPerfume" type="button">Salvar perfume</button>
+        </div>
+      </aside>
     </div>
 
     <!-- ─── MODO LISTA PESSOAL ───────────────────────────────── -->
-    <div id="modo-lista" style="display: none;">
+    <div id="modo-lista" class="modo-painel" style="display: none;">
       <aside class="form-section">
         <h1>Lista Pessoal</h1>
         <input type="text" id="nome-lista" placeholder="Nome da lista"/>
